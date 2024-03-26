@@ -12,7 +12,7 @@ class DataverseAllView(APIView):
     def get(self, request):
         base_url = "https://dataverse.harvard.edu"
         per_page = 100
-        max_loops = 40
+        max_loops = 1
         all_global_ids = []
 
         start_time = time.time()  # Record the start time
@@ -41,6 +41,52 @@ class DataverseAllView(APIView):
         print(f"Gathered {len(all_global_ids)} global IDs in {duration:.2f} seconds")  # Print the duration
 
         return JsonResponse(all_global_ids, safe=False)
+
+class ObjectAllView(APIView):
+    def get(self, request):
+        base_url = "https://dataverse.harvard.edu"
+        per_page = 100
+        max_loops = 1
+        all_items = []
+
+        start_time = time.time()  # Record the start time
+
+        for loop in range(max_loops):
+            # Build the API URL for the search with the appropriate start parameter for pagination
+            start = loop * per_page
+            api_url = f"{base_url}/api/search?q=*&type=dataset&per_page={per_page}&start={start}"
+
+            # Make the request to the Dataverse API
+            response = requests.get(api_url)
+
+            if response.status_code == 200:
+                search_results = response.json()["data"]["items"]
+
+                if not search_results:
+                    break  # Break the loop if no more results are returned
+
+                for result in search_results:
+                    item = {
+                        'name': result.get('name'),
+                        'description': result.get('description'),
+                        'keywords': result.get('keywords'),
+                        'subjects': result.get('subjects'),
+                        'publications': result.get('publications'),
+                        'createdAt': result.get('createdAt'),
+                        'updatedAt': result.get('updatedAt'),
+                        'fileCount': result.get('fileCount'),
+                        'global_id': result.get('global_id')
+                    }
+                    all_items.append(item)
+            else:
+                return JsonResponse({"error": f"Error retrieving data. Status code: {response.status_code}"}, status=response.status_code)
+
+        end_time = time.time()  # Record the end time
+        duration = end_time - start_time  # Calculate the duration
+
+        print(f"Gathered {len(all_items)} items in {duration:.2f} seconds")  # Print the duration
+
+        return JsonResponse(all_items, safe=False)
 
 class DataverseSearchView(View):
     def get(self, request):
